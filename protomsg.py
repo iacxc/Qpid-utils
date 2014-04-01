@@ -9,76 +9,10 @@ import time
 import socket
 import thread
 
-__all__ = ('GpbMessage')
+__all__ = ()
 
-def init_qpid_header(qpid_header, component_id):
-    """ initialize a common.qpid_header, the input parameter qpid_header
-        must be a qpid_header instance
-    """
+import Amqp
 
-    # set the fields of qpid_header one by one
-    time_utc = time.time()
-    time_lct = time_utc - time.altzone
-
-    qpid_header.generation_time_ts_utc = int(time_utc * 1e6)   #1
-    qpid_header.generation_time_ts_lct = int(time_lct * 1e6)   #2
-    qpid_header.version      = 1                               #3
-    qpid_header.cluster_id   = 0                               #4
-    qpid_header.domain_id    = 0                               #5
-    qpid_header.subdomain_id = 0                               #6
-    qpid_header.instance_id  = 0                               #7
-    qpid_header.tenant_id    = 0                               #8
-    qpid_header.component_id = component_id                    #9
-    qpid_header.process_id   = os.getpid()                     #10
-    try:
-        qpid_header.thread_id    = abs(thread.get_ident())     #11
-    except ValueError: # a temp fix for 32 bit proto files
-        qpid_header.thread_id    = abs(thread.get_ident()) % 1024  #11
-
-    qpid_header.node_id      = 0                               #12
-    qpid_header.pnid_id      = 0                               #13
-
-    hostname = socket.getfqdn()
-    qpid_header.ip_address_id = socket.gethostbyname(hostname) #14
-
-    qpid_header.sequence_num = 10                              #15
-    qpid_header.process_name = os.path.basename(sys.argv[0])   #16
-
-    nums = map(int, qpid_header.ip_address_id.split('.'))
-    qpid_header.host_id      = nums[1] << 24 | nums[0] << 16 \
-                             | nums[3] << 8  | nums[2]         #17
-
-    qpid_header.system_version = ''                            #18
-
-def init_info_header(info_header, component_id = 13):
-    """ initialize a common.info_header, the input parameter qpid_header
-        must be a qpid_header instance
-    """
-
-    header = info_header.header
-    init_qpid_header(header, component_id)                     #1
-
-    info_header.info_generation_time_ts_utc = header.generation_time_ts_utc #2
-    info_header.info_generation_time_ts_lct = header.generation_time_ts_lct #3
-    info_header.info_version      = header.version             #4
-    info_header.info_cluster_id   = header.cluster_id          #5
-    info_header.info_domain_id    = header.domain_id           #6
-    info_header.info_subdomain_id = header.subdomain_id        #7
-    info_header.info_instance_id  = header.instance_id         #8
-    info_header.info_tenant_id    = header.tenant_id           #9
-    info_header.info_component_id = header.component_id        #10
-    info_header.info_process_id   = header.process_id          #11
-    info_header.info_thread_id    = header.thread_id           #12
-
-    info_header.info_node_id      = header.node_id             #13
-    info_header.info_pnid_id      = header.pnid_id             #14
-
-    info_header.info_ip_address_id = header.ip_address_id      #15
-    info_header.info_sequence_num  = header.sequence_num       #16
-    info_header.info_process_name  = header.process_name       #17
-    info_header.info_host_id       = header.host_id            #18
-
-#
 def _find_field(root, attrs):
     """ find the final GPB field msg"""
     if len(attrs) == 0:
@@ -162,7 +96,7 @@ def _fill_msg(msg, tokens):
             if getattr(field, '_values', None) is None: # not repeated
                 if fd_type == fdesc.CPPTYPE_MESSAGE:
                     if fdesc.message_type.name == 'info_header':
-                        init_info_header(msg.header)
+                        Amqp.initInfoHeader(msg.header)
                     else:
                         tokens.appendleft(token)  # push back the token
                         _fill_msg(field, tokens)
@@ -235,9 +169,8 @@ class GpbMessage(object):
     #instance properties and methods
     __slots__ = ( '__proto_path', '__pkg_name', '__msg_name', '__msg' )
 
-    def __init__( self, proto_path, pkg_name, msg_name ):
+    def __init__( self, pkg_name, msg_name ):
         """ constructor """
-        self.__proto_path = proto_path
         self.__pkg_name = pkg_name
         self.__msg_name = msg_name
         self.__msg      = None
@@ -249,10 +182,8 @@ class GpbMessage(object):
 
     def _import(self):
         """ import the message class, and create a instance in self.__msg """
-        sys.path.insert(0, self.__proto_path)
         module = __import__('%s.%s_pb2' % (self.__pkg_name, self.__msg_name),
                             globals(), locals(), [self.__msg_name])
-        del sys.path[0]
 
         klass = getattr(module, self.__msg_name)
 
@@ -331,143 +262,5 @@ class GpbMessage(object):
         return self.__msg
 
 if __name__ == '__main__':
-
-    import json
-
-    proto_path = os.path.join(os.environ['HOME'], 'protos')
-
-    pm1 = GpbMessage(proto_path, 'ndcs', 'query_start_stats')
-    print '%s %s' % (pm1.message_name, json.dumps(pm1.topo(), indent=2))
-
-    tpaString = '\t'.join([
-        '<header>',                # 1
-        'MXID11000031366212240958796138621000000001606U6553400',    # 2
-        'SQL_CUR_2',               # 3
-        'MXID11000031366212240958796138621000000001606U6553400_269_SQL_CUR_2',
-        'SQL_EXE_UTIL',            # 5
-        'ccai',                    # 6
-        'SQLUSER_ADMIN',           # 7
-        '65534',                   # 8
-        'DB__USERADMIN',           # 9
-        'HPDCI',                   # 10
-        '\NSK',                    # 11
-        '0,31366',                 # 12
-        'Admin_Load_DataSource',   # 13
-        'HP_DEFAULT_SERVICE',      # 14
-        '1374212512432376',        # 15
-        '1374212512432376',        # 16
-        '1374212512435401',        # 17
-        '1374212512435401',        # 18
-        '0',                       # 19
-        '1374212512423938',        # 20
-        '1374212512423938',        # 21
-        '1374212512432139',        # 22
-        '1374212512432139',        # 23
-        '8201',                    # 24
-        '0.0',                     # 25
-        '1.0',                     # 26
-        '0.0',                     # 27
-        '0.0',                     # 28
-        '0.0',                     # 29
-        '0.0',                     # 30
-        '0.0',                     # 31
-        '0.0',                     # 32
-        '0',                       # 33
-        '1449043952',              # 34
-        '0',                       # 35
-        '0',                       # 36
-        '0',                       # 37
-        '0',                       # 38
-        '0',                       # 39
-        '0',                       # 40
-        '0',                       # 41
-        '0.0',                     # 42
-        '0.0',                     # 43
-        '0.0',                     # 44
-        '1374212512433344',        # 45
-        '1374212512433344',        # 46
-        'INIT',                    # 47
-        'N/A',                     # 48
-        '0',                       # 49
-        '0',                       # 50
-        'NONE',                    # 51
-        'get tables',              # 52
-        '0',                       # 53
-        '212240958830832254000372000',  # 54
-        '10000',                   # 55
-        '0',                       # 56
-        '0',                       # 57
-        '0',                       # 58
-        '0',                       # 59
-        '0',                       # 60
-        '0',                       # 61
-        '0',                       # 62
-        '2',                       # 63
-        '0',                       # 64
-        '1',                       # 65
-        '278312',                  # 66
-        '809032',                  # 67
-        '24',                      # 68
-        '3502',                    # 69
-        '0',                       # 70
-        'NO',                      # 71
-        '<N/A>',                   # 72
-        '<N/A>',                   # 73
-        '<N/A>',                   # 74
-        '0.0',                     # 75
-        '0.0',                     # 76
-        '0',                       # 77
-        'DISK',                    # 78
-        '0'])                      # 79
-    pm1.loadtabs(tpaString)
-
-    if tpaString != pm1.dumptabs():
-        raise AssertError('dumptabs')
-    print '%s\n', pm1
-
-    testvec = ['simple1', 'simple2', 'rep1', 'rep2']
-    msgs = dict( (msgname, GpbMessage(proto_path, 'protest', msgname))
-                   for msgname in testvec )
-
-    print 'Show Topos:'
-    for pmsg in msgs.itervalues():
-        print '%s %s' % (pmsg.message_name, json.dumps(pmsg.topo(), indent=4))
-
-    print '\nShow Empty message:'
-    for pmsg in msgs.itervalues():
-        print '%s %s' % (pmsg.message_name, json.dumps(pmsg.dumpjson(), indent=4))
-
-    # fill messages
-    msgs['simple1'].set_field_value('id', 1)
-    msgs['simple1'].set_field_value('name', 'simple1')
-
-    msgs['simple2'].loadjson(
-        {"body": {"id": 10, "name": "simple2"},"id": 2})
-
-    msgs['rep1'].loadjson(
-        { "name": [ "name1", "name2", "name3" ], "id": 1})
-
-    msgs['rep2'].loadtabs('2\t3\t10\tName1\t20\tName2\t30\tName3')
-
-    print '\nShow Message with values:'
-    for pmsg in msgs.itervalues():
-        print '%s: %s' % (pmsg.message_name,
-                          json.dumps(pmsg.dumps(), indent=4))
-
-    print '\nShow Message as tpa input:'
-    for pmsg in msgs.itervalues():
-        print '%s: %s' % (pmsg.message_name,
-                          pmsg.dumptabs().replace('\t','<TAB>'))
-
-    print '\nShow Message in raw:'
-    for pmsg in msgs.itervalues():
-        print '%s:\n{ %s}' % (pmsg.message_name,
-                             str(pmsg).replace('\n', ' '))
-
-    print '\nShow field body:'
-    print [ '{ %s}' % str(v).replace('\n', ' ')
-            for v in msgs['rep2'].field_value('body') ]
-
-    print '\nShow serialize to string:'
-    print msgs['rep2'].dumps()
+    print 'Gpbmessage'
 
