@@ -112,27 +112,24 @@ def main():
     import Amqp
     from optparse import OptionParser
 
-    sys.path.append(os.getenv('SEAPILOT_HOME') +
-                       '/base/source/etc/publications')
-    sys.path.append(os.getenv('SEAPILOT_HOME') + '/etc/publications')
-
     parser = OptionParser()
+    parser.add_option('--broker',  dest = 'broker', default = 'localhost:5672')
     parser.add_option('--consumer',  dest = 'consumer', action = 'store_true')
     parser.add_option('--producer',  dest = 'consumer', action = 'store_false')
 
-    parser.add_option('--broker',  dest = 'broker', default = 'localhost:5672')
-
     (opts, _args) = parser.parse_args()
+
+    sys.path.append(os.getenv('SEAPILOT_HOME') + '/etc/publications')
 
     from common.text_event_pb2 import text_event
 
     if opts.consumer:
-        receiver = Consumer(opts.broker)
+        consumer = Consumer(opts.broker)
 
         import qpid.messaging.exceptions
 
         try:
-            msg = receiver.fetch(60)
+            msg = consumer.fetch(60)
             msg_tev = text_event()
             msg_tev.ParseFromString(msg.content)
             print 'Got message', msg_tev
@@ -141,17 +138,17 @@ def main():
         except KeyboardInterrupt:
             print
 
-        receiver.close()
+        consumer.close()
 
     else:
-        sender = Producer(opts.broker)
+        producer = Producer(opts.broker)
 
         msg = text_event()
         Amqp.initEventHeader(msg.header, 13, 100200, 3)
         msg.text = 'This is a test event'
-        sender.send('common.text_event', msg.SerializeToString())
+        producer.send('common.text_event', msg.SerializeToString())
 
-        sender.close()
+        producer.close()
 
 
 if __name__ == '__main__':
