@@ -71,7 +71,7 @@ def _fill_from_json(msg, adict):
         else: # simple value
             setattr(msg, fd_name, fd_value)
 
-def _fill_msg(msg, tokens):
+def _fill_msg(msg, tokens, component_id):
     """ fill the msg from a token list """
     desc = msg.DESCRIPTOR
     for fdesc in desc.fields:
@@ -96,10 +96,10 @@ def _fill_msg(msg, tokens):
             if getattr(field, '_values', None) is None: # not repeated
                 if fd_type == fdesc.CPPTYPE_MESSAGE:
                     if fdesc.message_type.name == 'info_header':
-                        Amqp.initInfoHeader(msg.header)
+                        Amqp.init_info_header(msg.header, component_id)
                     else:
                         tokens.appendleft(token)  # push back the token
-                        _fill_msg(field, tokens)
+                        _fill_msg(field, tokens, component_id)
                 else: # simple types
                     try:
                         setattr(msg, fd_name, converter.get(fd_type, str)(token))
@@ -110,7 +110,7 @@ def _fill_msg(msg, tokens):
             else: # repeated field
                 if fd_type == fdesc.CPPTYPE_MESSAGE:
                     for _ in range(int(token)):
-                        _fill_msg(field.add(), tokens)
+                        _fill_msg(field.add(), tokens, component_id)
 
                 else: # simple types
                     field.append(converter.get(fd_type, str)(token))
@@ -169,8 +169,9 @@ class GpbMessage(object):
     #instance properties and methods
     __slots__ = ( '__proto_path', '__pkg_name', '__msg_name', '__msg' )
 
-    def __init__( self, pkg_name, msg_name ):
+    def __init__( self, proto_path, pkg_name, msg_name ):
         """ constructor """
+        self.__proto_path = proto_path
         self.__pkg_name = pkg_name
         self.__msg_name = msg_name
         self.__msg      = None
@@ -182,8 +183,11 @@ class GpbMessage(object):
 
     def _import(self):
         """ import the message class, and create a instance in self.__msg """
+        sys.path.append(self.__proto_path)
         module = __import__('%s.%s_pb2' % (self.__pkg_name, self.__msg_name),
                             globals(), locals(), [self.__msg_name])
+
+        del sys.path[0]
 
         klass = getattr(module, self.__msg_name)
 
@@ -220,12 +224,16 @@ class GpbMessage(object):
 
         field.extend(values)
 
-    def loadtabs(self, astring):
+    def loadtabs(self, astring, component_id):
         """ feed by a TAB splitted string """
+
+        if __debug__:
+            print 'component_id', component_id
+
         import Queue
         tokens = Queue.deque(astring.replace('\\t', '\t').split('\t'))
 
-        _fill_msg(self.__msg, tokens)
+        _fill_msg(self.__msg, tokens, component_id)
 
     def loadjson(self, adict):
         _fill_from_json(self.__msg, adict)

@@ -14,7 +14,7 @@ from Amqp.RoutingKey import RoutingKey
 from Amqp.QpidWrapper import Consumer
 from protomsg import GpbMessage
 
-def dispatch_msg(msg, output=sys.stdout):
+def dispatch_msg(msg, proto_path, output=sys.stdout):
     """ dispatch the message"""
     if msg.subject:
         keystr = msg.subject
@@ -32,20 +32,38 @@ def dispatch_msg(msg, output=sys.stdout):
 
     routingkey = RoutingKey(keystr)
 
-    pmsg = GpbMessage(routingkey.package, routingkey.publication)
+    pmsg = GpbMessage(proto_path, routingkey.package, routingkey.publication)
 
     from google.protobuf.message import DecodeError
     try:
         pmsg.loads(msg.content)
 
-        amsg = GpbMessage(routingkey.package, routingkey.publication)
+        amsg = GpbMessage(proto_path, routingkey.package, 
+                                      routingkey.publication)
         outtpa = pmsg.dumptabs()
-        amsg.loadtabs(outtpa)
+
+        field = pmsg.get_field('header')
+        if field:
+            header_class = field.__class__.__name__
+            field_name = {'info_header'   : 'header.info_component_id',
+                          'event_header'  : 'header.header.info_component_id',
+                          'perf_header'   : 'header.header.info_component_id',
+                          'health_header' : 'header.header.info_component_id'
+                         }.get(header_class, 'info_component_id')
+        else:
+            field = pmsg.get_field('checkinfo')
+            if field: #layer_check
+                field_name = 'checkinfo.header.header.info_component_id'
+            else: #normal health check
+                field_name = 'subjectinfo.header.header.info_component_id'
+
+        amsg.loadtabs(outtpa, pmsg.field_value(field_name))
 
         if outtpa != amsg.dumptabs():
             raise AssertionError("Error for tpa:%s", routingkey)
 
-        bmsg = GpbMessage(routingkey.package, routingkey.publication)
+        bmsg = GpbMessage(proto_path, routingkey.package, 
+                                      routingkey.publication)
         outjson = pmsg.dumpjson()
         bmsg.loadjson(outjson)
 
@@ -65,12 +83,14 @@ def dispatch_msg(msg, output=sys.stdout):
 
 class Getter(Thread):
     """ class Getter """
-    def __init__(self, broker, exchange, binding_keys, output=sys.stdout):
+    def __init__(self, broker, exchange, binding_keys, proto_path,
+                   output=sys.stdout):
         super(Getter, self).__init__()
 
         self.__broker = broker
         self.__exchange = exchange
         self.__binding_keys = binding_keys
+        self.__proto_path = proto_path
         self.__output = output
 
         self.__exit = False
@@ -90,7 +110,7 @@ class Getter(Thread):
 
                 msg = self.__receiver.fetch(15)
 
-                dispatch_msg(msg, self.__output)
+                dispatch_msg(msg, self.__proto_path, self.__output)
 
             except qpid.messaging.exceptions.ConnectError:
                 print '%s Could not connect to  %s, try again...' % (
@@ -140,7 +160,6 @@ def main():
         print opts.brokers
         print opts.bindingKeys
 
-    Amqp.set_proto_src(opts.protoSrc)
     exchange = 'amq.topic'
 
     if opts.out == sys.stdout:
@@ -148,7 +167,7 @@ def main():
     else:
         output = open(opts.out, 'w')
 
-    threads = [Getter(broker, exchange, opts.bindingKeys, output)
+    threads = [Getter(broker, exchange, opts.bindingKeys, opts.protoSrc, output)
                   for broker in opts.brokers]
 
 
