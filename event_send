@@ -1,0 +1,92 @@
+#!/usr/bin/python -O
+
+import sys
+from Amqp.RoutingKey import SP_CATEGORY, SP_SCOPE, SP_SECURITY, SP_PROTOCOL
+import Common
+
+def main():
+    from optparse import OptionParser
+
+    parser = OptionParser()
+    parser.add_option('--broker-ip', dest='ip', default='127.0.0.1', 
+                      help='broker IP address')
+    parser.add_option('--broker-port', dest='port', type=int,
+                      default=5672, help='broker port number')
+    parser.add_option('--message-type', dest='type', default=SP_CATEGORY.EVENT,
+                      help='message type')
+    parser.add_option('--message-scope', dest='scope', 
+                      default=SP_SCOPE.INSTANCE,
+                      help='message scope')
+    parser.add_option('--message-security', dest='security', 
+                      default=SP_SECURITY.PUBLIC,
+                      help='message security')
+    parser.add_option('--message-protocol', dest='protocol', 
+                      default=SP_PROTOCOL.GPB,
+                      help='message protocol')
+    parser.add_option('--component-id', dest='component_id', type=int,
+                      help='sender component id')
+    parser.add_option('--event-id', dest='event_id', type=int,
+                      help='event id')
+    parser.add_option('--event-severity', dest='event_severity', type=int,
+                      help='event severity')
+    parser.add_option('--event-text-string', dest='event_text_string',
+                      help='event text string')
+    parser.add_option('--event-text-file', dest='event_text_file',
+                      help='event text file')
+    parser.add_option('--service-identifier', dest='service_id',
+                      default=sys.argv[0],
+                      help='service identifier of the sender for this event')
+    parser.add_option('--debug', dest='debug', action='store_true', 
+                      default=False, help='debug output')
+
+    (opts, _args) = parser.parse_args()
+
+
+    if opts.event_text_file:
+        if opts.debug:
+            print 'Loading file', opts.event_text_file
+
+        with open(opts.event_text_file) as fd:
+            event_text_string = fd.read().strip()
+    else:
+        event_text_string = opts.event_text_string
+
+    sys.path.append(os.getenv('HOME') + '/publications')
+    from common.text_event_pb2 import text_event
+
+    message = text_event()
+    Amqp.init_event_header(message.header, opts.component_id, 
+                           opts.event_id, opts.event_severity,
+                           process_name = opts.service_id)
+
+    ts_utc, ts_lct = Common.current_timestamps()
+
+    message.text = event_text_string
+    message.eventtime_lct_ts = ts_lct
+    message.eventtime_utc_ts = ts_utc
+
+    if opts.debug:
+        print '* Connect to AMQP broker', opts.ip, 'on port', opts.port
+
+    producer = Producer('{0}:{1}'.format(opts.ip, opts.port))
+    routingKey = RoutingKey('.'.join([opts.type, 
+                                      opts.scope,
+                                      opts.security,
+                                      opts.protocol,
+                                      'common',
+                                      'text_event']))
+
+    if opts.debug:
+        print '* Sending text event with routing key', routingKey, '...'
+        print message
+
+    producer.send(str(routingKey), message.SerializeToString())
+
+    if opts.debug:
+        print '* Closing AMQP connection'
+
+    producer.close()
+ 
+if __name__ == '__main__':
+    main()
+

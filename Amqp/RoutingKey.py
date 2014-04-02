@@ -72,9 +72,9 @@ SP_SECURITY = Common.make_enum('SP_SECURITY',
         PRIVATE = 'private')
 
 SP_PROTOCOL = Common.make_enum('SP_PROTOCOL',
-        NULL        = 'null',
-        GPBPROTOCOL = 'gpb',
-        XMLPROTOCOL = 'xml')
+        NULL = 'null',
+        GPB  = 'gpb',
+        XML  = 'xml')
 
 SP_PUBLICATION = Common.make_enum('SP_PUBLICATION',
         NULL        = 'null')
