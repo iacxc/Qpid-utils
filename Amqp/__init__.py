@@ -26,10 +26,11 @@ def next_sequence_num(buf=[0]): # use list as default value to make sure it is
 __config = Config()
 
 def init_qpid_header(header, component_id,
-                           cluster_id=__config.cluster_id,
-                           domain_id=__config.domain_id,
-                           subdomain_id=__config.subdomain_id,
-                           instance_id=__config.instance_id):
+                           cluster_id=None,
+                           domain_id=None,
+                           subdomain_id=None,
+                           instance_id=None,
+                           process_name=None):
     """ Init the qpid_header """
     assert header.__class__.__name__ == 'qpid_header'
 
@@ -37,11 +38,10 @@ def init_qpid_header(header, component_id,
     header.generation_time_ts_utc = ts_utc
     header.generation_time_ts_lct = ts_lct
     header.version                = 1
-    header.cluster_id             = cluster_id
-    header.domain_id              = domain_id
-    header.domain_id              = domain_id
-    header.subdomain_id           = subdomain_id
-    header.instance_id            = instance_id
+    header.cluster_id             = cluster_id or __config.cluster_id
+    header.domain_id              = domain_id or __config.domain_id
+    header.subdomain_id           = subdomain_id or __config.subdomain_id
+    header.instance_id            = instance_id or __config.instance_id
     header.tenant_id              = 0
     header.component_id           = component_id
     header.process_id             = os.getpid()
@@ -50,20 +50,22 @@ def init_qpid_header(header, component_id,
     header.ip_address_id = __config.ip_address
 
     header.sequence_num = next_sequence_num()
-
+    if process_name:
+        header.process_name = process_name
     header.host_id = __config.host_id
 
 
 def init_info_header(header, component_id,
-                           cluster_id=__config.cluster_id,
-                           domain_id=__config.domain_id,
-                           subdomain_id=__config.subdomain_id,
-                           instance_id=__config.instance_id):
+                           cluster_id=None,
+                           domain_id=None,
+                           subdomain_id=None,
+                           instance_id=None,
+                           process_name=None):
     """ Init the info_header """
     assert header.__class__.__name__ == 'info_header'
 
     init_qpid_header(header.header, component_id, cluster_id, domain_id,
-                   subdomain_id, instance_id)
+                   subdomain_id, instance_id, process_name)
     qpid_header = header.header
 
     header.info_generation_time_ts_utc = qpid_header.generation_time_ts_utc
@@ -79,50 +81,54 @@ def init_info_header(header, component_id,
     header.info_process_id             = qpid_header.process_id
     header.info_thread_id              = qpid_header.thread_id
     header.info_sequence_num           = qpid_header.sequence_num
+    header.info_process_name           = qpid_header.process_name
     header.info_ip_address_id          = qpid_header.ip_address_id
     header.info_host_id                = qpid_header.host_id
 
 def init_event_header(header, component_id, event_id, event_severity,
-                           cluster_id=__config.cluster_id,
-                           domain_id=__config.domain_id,
-                           subdomain_id=__config.subdomain_id,
-                           instance_id=__config.instance_id):
+                           cluster_id=None,
+                           domain_id=None,
+                           subdomain_id=None,
+                           instance_id=None,
+                           process_name=None):
     """ Init the event_header """
     assert header.__class__.__name__ == 'event_header'
 
     init_info_header(header.header, component_id, cluster_id, domain_id,
-                   subdomain_id, instance_id)
+                   subdomain_id, instance_id, process_name)
     header.event_id = event_id
     header.event_severity = event_severity
 
 
-def init_herf_header(header, component_id,
+def init_perf_header(header, component_id,
                            requested_sampling_interval=0,
                            actual_sampling_interval=0,
-                           cluster_id=__config.cluster_id,
-                           domain_id=__config.domain_id,
-                           subdomain_id=__config.subdomain_id,
-                           instance_id=__config.instance_id):
+                           cluster_id=None,
+                           domain_id=None,
+                           subdomain_id=None,
+                           instance_id=None,
+                           process_name=None):
     """ Init the perf_header """
     assert header.__class__.__name__ == 'perf_header'
 
     init_info_header(header.header, component_id, cluster_id, domain_id,
-                   subdomain_id, instance_id)
+                   subdomain_id, instance_id, process_name)
     header.requested_sampling_interval_ms = requested_sampling_interval
     header.actual_sampling_interval_ms = actual_sampling_interval
 
 
 def init_health_header(header, component_id, publication_type,
                            check_interval=0, error=0, error_text='',
-                           cluster_id=__config.cluster_id,
-                           domain_id=__config.domain_id,
-                           subdomain_id=__config.subdomain_id,
-                           instance_id=__config.instance_id):
+                           cluster_id=None,
+                           domain_id=None,
+                           subdomain_id=None,
+                           instance_id=None,
+                           process_name=None):
     """ Init the health_header """
     assert header.__class__.__name__ == 'health_header'
 
     init_info_header(header.header, component_id, cluster_id, domain_id,
-                   subdomain_id, instance_id)
+                   subdomain_id, instance_id, process_name)
     header.publication_type = publication_type
     header.check_interval_ms = check_interval
     header.error = error

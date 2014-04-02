@@ -1,7 +1,11 @@
 #!/usr/bin/python -O
 
 import sys
-from Amqp.RoutingKey import SP_CATEGORY, SP_SCOPE, SP_SECURITY, SP_PROTOCOL
+import os
+import Amqp
+from Amqp.RoutingKey import RoutingKey, SP_CATEGORY, SP_SCOPE, \
+                            SP_SECURITY, SP_PROTOCOL
+from Amqp.QpidWrapper import Producer
 import Common
 
 def main():
