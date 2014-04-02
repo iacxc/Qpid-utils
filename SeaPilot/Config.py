@@ -1,10 +1,4 @@
 """
-   @@@ START COPYRIGHT @@@
-
-   (C) Copyright 2013-2014 Hewlett-Packard Development Company, L.P.
-
-   @@@ END COPYRIGHT @@@
-
    provide the configuration information specific for SeaPilot
 
    $Id: Logger.py 38507 2014-03-19 04:37:49Z cheng-xin.cai $

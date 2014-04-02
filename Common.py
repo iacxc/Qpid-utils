@@ -1,10 +1,4 @@
 """
-   @@@ START COPYRIGHT @@@
-
-   (C) Copyright 2013-2014 Hewlett-Packard Development Company, L.P.
-
-   @@@ END COPYRIGHT @@@
-
    $Id: Common.py 38587 2014-03-21 01:20:25Z cheng-xin.cai $
 
    provide some common utilities

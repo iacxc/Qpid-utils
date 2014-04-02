@@ -1,10 +1,4 @@
 """
-   @@@ START COPYRIGHT @@@
-
-   (C) Copyright 2013-2014 Hewlett-Packard Development Company, L.P.
-
-   @@@ END COPYRIGHT @@@
-
    __init__.py for Amqp
 
    $Id: __init__.py 38908 2014-04-01 03:22:04Z cheng-xin.cai $

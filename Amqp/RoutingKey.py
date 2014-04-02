@@ -1,10 +1,4 @@
 """
-    @@@ START COPYRIGHT @@@
-
-    (C) Copyright 2013-2014 Hewlett-Packard Development Company, L.P.
-
-    @@@ END COPYRIGHT @@@
-
     $Id: RoutingKey.py 38883 2014-03-31 07:10:11Z cheng-xin.cai $
 
     This module provide a simple implementation of RoutingKey class
