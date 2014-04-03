@@ -13,20 +13,21 @@ def main():
 
     parser = OptionParser()
     parser.add_option('--broker-ip', dest='ip', default='127.0.0.1', 
-                      help='broker IP address')
+                      help='broker IP address, default[%default]')
     parser.add_option('--broker-port', dest='port', type=int,
-                      default=5672, help='broker port number')
+                      default=5672, 
+                      help='broker port number, default[%default]')
     parser.add_option('--message-type', dest='type', default=SP_CATEGORY.EVENT,
-                      help='message type')
+                      help='message type, default[%default]')
     parser.add_option('--message-scope', dest='scope', 
                       default=SP_SCOPE.INSTANCE,
-                      help='message scope')
+                      help='message scope, default[%default]')
     parser.add_option('--message-security', dest='security', 
                       default=SP_SECURITY.PUBLIC,
-                      help='message security')
+                      help='message security, default[%default]')
     parser.add_option('--message-protocol', dest='protocol', 
                       default=SP_PROTOCOL.GPB,
-                      help='message protocol')
+                      help='message protocol, default[%default]')
     parser.add_option('--component-id', dest='component_id', type=int,
                       help='sender component id')
     parser.add_option('--event-id', dest='event_id', type=int,
