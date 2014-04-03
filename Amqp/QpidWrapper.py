@@ -99,6 +99,31 @@ class Producer(QpidWrapper):
         self.__sender.send(msg)
 
 
+class ConsumerListener(object):
+    def __init__(self, broker="localhost:5672", exchange="amq.topic",
+                       binding_keys=None, username=None, password=None):
+        self.__consumer = Consumer(broker, exchange, binding_keys,
+                                           username, password)
+
+
+    def listen(self):
+        import qpid.messaging.exceptions
+
+        while True:
+            try:
+                message = self.__consumer.fetch(60)
+                self.received(message)
+            except qpid.messaging.exceptions.Empty:
+                if __debug__:
+                    print 'No message, continue'
+            except KeyboardInterrupt:
+                print 'Ctrl-C pressed'
+                break
+
+
+    def received(self, message):
+        raise NotImplementedError, 'not implemented'
+
 
 def main():
     """ main function for testing """
@@ -113,34 +138,31 @@ def main():
 
     (opts, _args) = parser.parse_args()
 
-    sys.path.append(os.getenv('SEAPILOT_HOME') + '/etc/publications')
+    sys.path.append(os.getenv('HOME') + '/publications')
 
     from common.text_event_pb2 import text_event
 
     if opts.consumer:
-        consumer = Consumer(opts.broker)
+        class TestListener(ConsumerListener):
+            def __init__(self, broker="localhost:5672", exchange="amq.topic",
+                       binding_keys=None, username=None, password=None):
+                super(TestListener, self).__init__(broker, exchange,
+                                        binding_keys, username, password)
 
-        import qpid.messaging.exceptions
+            def received(self, message):
+                msg_tev = text_event()
+                msg_tev.ParseFromString(message.content)
+                print 'Got message', msg_tev
 
-        try:
-            msg = consumer.fetch(60)
-            msg_tev = text_event()
-            msg_tev.ParseFromString(msg.content)
-            print 'Got message', msg_tev
-        except qpid.messaging.exceptions.Empty:
-            print 'No message'
-        except KeyboardInterrupt:
-            print
-
-        consumer.close()
-
+        tl = TestListener(opts.broker)
+        tl.listen()
     else:
         producer = Producer(opts.broker)
 
-        msg = text_event()
-        Amqp.initEventHeader(msg.header, 13, 100200, 3)
-        msg.text = 'This is a test event'
-        producer.send('common.text_event', msg.SerializeToString())
+        msg_tev = text_event()
+        Amqp.init_event_header(msg_tev.header, 13, 100200, 3)
+        msg_tev.text = 'This is a test event'
+        producer.send('common.text_event', msg_tev.SerializeToString())
 
         producer.close()
 
