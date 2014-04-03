@@ -122,7 +122,7 @@ class ConsumerListener(object):
 
 
     def received(self, message):
-        raise NotImplementedError, 'not implemented'
+        raise NotImplementedError('not implemented')
 
 
 def main():

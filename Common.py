@@ -43,7 +43,7 @@ class Command(object):
                                                   stdout=PIPE, stderr=STDOUT)
                 self.output, self.error = self.process.communicate()
                 self.status = self.process.returncode
-            except Exception, e:
+            except Exception as e:
                 self.status = e.errno
                 self.error = e.strerror
 
@@ -94,7 +94,7 @@ def make_enum(enum_type='Enum', base_classes=None, methods=None, **attrs):
         methods = {}
 
     base_classes = base_classes + (object,)
-    for key, val in methods.iteritems():
+    for key, val in list(methods.items()):
         methods[key] = classmethod(val)
 
     attrs['enums'] = attrs.copy()

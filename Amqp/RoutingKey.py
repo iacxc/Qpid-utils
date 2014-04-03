@@ -121,42 +121,42 @@ class RoutingKey(object):
                 if self.__category == SP_CATEGORY.NULL:
                     self.__category = field
                 else:
-                    raise RepteatedComponent, 'category:{0}'.format(field)
+                    raise RepteatedComponent('category:{0}'.format(field))
 
             elif field in SP_PACKAGE_SET:
                 #package
                 if self.__package == SP_PACKAGE.NULL:
                     self.__package = field
                 else:
-                    raise RepteatedComponent, 'package:{0}'.format(field)
+                    raise RepteatedComponent('package:{0}'.format(field))
 
             elif field in SP_SCOPE_SET:
                 #scope
                 if self.__scope == SP_SCOPE.NULL:
                     self.__scope = field
                 else:
-                    raise RepteatedComponent, 'scope:{0}'.format(field)
+                    raise RepteatedComponent('scope:{0}'.format(field))
 
             elif field in SP_SECURITY_SET:
                 #security
                 if self.__security == SP_SECURITY.NULL:
                     self.__security = field
                 else:
-                    raise RepteatedComponent, 'security:{0}'.format(field)
+                    raise RepteatedComponent('security:{0}'.format(field))
 
             elif field in SP_PROTOCOL_SET:
                 #protocol
                 if self.__protocol == SP_PROTOCOL.NULL:
                     self.__protocol = field
                 else:
-                    raise RepteatedComponent, 'protocol:{0}'.format(field)
+                    raise RepteatedComponent('protocol:{0}'.format(field))
 
             else:
                 #publication
                 if self.__publication == SP_PUBLICATION.NULL:
                     self.__publication = field
                 else:
-                    raise TooManyFreeString, '{0}'.format(field)
+                    raise TooManyFreeString('{0}'.format(field))
 
 
 
