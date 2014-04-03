@@ -30,10 +30,12 @@ class Config(object):
 
         self.__host_id = int(out.split('\n')[0], 16)
 
-        self.__cluster_id   = os.getenv('SEAPILOT_CLUSTER_ID', 0)
-        self.__domain_id    = os.getenv('SEAPILOT_DOMAIN_ID', 0)
+        # cluster_id, domain_id, subdomain_id and instance_id
+        # must larger or euqal to 0
+        self.__cluster_id   = max(os.getenv('SEAPILOT_CLUSTER_ID', 0), 0)
+        self.__domain_id    = max(os.getenv('SEAPILOT_DOMAIN_ID', 0), 0)
         self.__subdomain_id = 0
-        self.__instance_id  = os.getenv('SEAPILOT_INSTANCE_ID', 0)
+        self.__instance_id  = max(os.getenv('SEAPILOT_INSTANCE_ID', 0), 0)
 
     @property
     def ip_address(self):
