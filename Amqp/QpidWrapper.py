@@ -9,6 +9,7 @@ __all__ = []
 
 
 import os
+from threading import Thread
 from qpid.messaging import Connection, Message
 
 DEF_CONTENTTYPE = 'application/x-protobuf'
@@ -99,30 +100,35 @@ class Producer(QpidWrapper):
         self.__sender.send(msg)
 
 
-class ConsumerListener(object):
+class ConsumerListener(Thread):
     def __init__(self, broker="localhost:5672", exchange="amq.topic",
                        binding_keys=None, username=None, password=None):
+        super(ConsumerListener, self).__init__()
         self.__consumer = Consumer(broker, exchange, binding_keys,
                                            username, password)
+        self.__exit = False
 
-
-    def listen(self):
+    def run(self):
         import qpid.messaging.exceptions
 
-        while True:
+        while not self.__exit:
             try:
-                message = self.__consumer.fetch(60)
+                message = self.__consumer.fetch(5)
                 self.received(message)
             except qpid.messaging.exceptions.Empty:
                 if __debug__:
                     print 'No message, continue'
-            except KeyboardInterrupt:
-                print 'Ctrl-C pressed'
-                break
+
+        if __debug__:
+            print 'Finished'
 
 
     def received(self, message):
-        raise NotImplementedError('not implemented')
+        raise NotImplementedError, 'not implemented'
+
+
+    def stop(self):
+        self.__exit = True
 
 
 def main():
@@ -155,7 +161,16 @@ def main():
                 print 'Got message', msg_tev
 
         tl = TestListener(opts.broker)
-        tl.listen()
+        tl.start()
+        try:
+            while True:
+                time.sleep(5)
+        except KeyboardInterrupt:
+            print '\nControl-C pressed, waiting consumer to exit'
+            tl.stop()
+
+        tl.join()
+
     else:
         producer = Producer(opts.broker)
 
