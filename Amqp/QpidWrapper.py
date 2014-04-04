@@ -134,6 +134,7 @@ class ConsumerListener(Thread):
 def main():
     """ main function for testing """
     import sys
+    import time
     import Amqp
     from optparse import OptionParser
 
