@@ -12,7 +12,6 @@ import socket
 import thread
 
 import Common
-from SeaPilot.Config import Config
 
 def next_sequence_num(buf=[0]): # use list as default value to make sure it is
                                 # initialized only once
@@ -23,7 +22,6 @@ def next_sequence_num(buf=[0]): # use list as default value to make sure it is
     buf[0] += 1
     return val
 
-__config = Config()
 
 def init_qpid_header(header, component_id,
                            cluster_id=None,
@@ -38,21 +36,40 @@ def init_qpid_header(header, component_id,
     header.generation_time_ts_utc = ts_utc
     header.generation_time_ts_lct = ts_lct
     header.version                = 1
-    header.cluster_id             = cluster_id or __config.cluster_id
-    header.domain_id              = domain_id or __config.domain_id
-    header.subdomain_id           = subdomain_id or __config.subdomain_id
-    header.instance_id            = instance_id or __config.instance_id
+
+    if cluster_id:
+        header.cluster_id             = cluster_id
+    else:
+        header.cluster_id = max(int(os.getenv('SEAPILOT_CLUSTER_ID', 0)), 0)
+
+    if domain_id:
+        header.domain_id              = domain_id
+    else:
+        header.domain_id = max(int(os.getenv('SEAPILOT_DOMAIN_ID', 0)), 0)
+
+    header.subdomain_id           = subdomain_id or 0
+
+    if instance_id:
+        header.instance_id              = instance_id
+    else:
+        header.instance_id = max(int(os.getenv('SEAPILOT_INSTANCE_ID', 0)), 0)
+
     header.tenant_id              = 0
     header.component_id           = component_id
     header.process_id             = os.getpid()
     header.thread_id              = thread.get_ident() & 0xFFFF
 
-    header.ip_address_id = __config.ip_address
+    hostname = socket.getfqdn()
+    header.ip_address_id = socket.gethostbyname(hostname)
 
     header.sequence_num = next_sequence_num()
+
     if process_name:
         header.process_name = process_name
-    header.host_id = __config.host_id
+
+    retval, out = Common.run_cmd('/usr/bin/hostid')
+    if retval == Common.SUCCESS:
+        header.host_id = int(out.split('\n')[0], 16)
 
 
 def init_info_header(header, component_id,
