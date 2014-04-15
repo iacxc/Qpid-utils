@@ -1,10 +1,20 @@
 """
-   __init__.py for Amqp
 
-   $Id: __init__.py 38908 2014-04-01 03:22:04Z cheng-xin.cai $
+   __init__.py for Amqp
 
 """
 
+
+__all__ = ( 'init_qpid_header', 
+            'init_info_header', 
+            'init_event_header', 
+            'init_perf_header', 
+            'init_health_header', 
+            'set_qpid_header_sequence_number', 
+            'set_info_header_sequence_number', 
+            'set_amqp_header_service_identifier', 
+            'set_proto_src' 
+          )
 
 import os
 import sys
@@ -176,7 +186,7 @@ def set_amqp_header_service_identifier (header, process_name):
 
 
 def set_proto_src(path):
-    """ set the publications for google protocol buffer """
+    """ set the path of publications for google protocol buffer """
     if sys.path.count(path) == 0:
         sys.path.append(path)
 

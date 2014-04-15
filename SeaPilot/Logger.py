@@ -1,10 +1,10 @@
 """
-   provide the common logger specific for SeaPilot
 
-   $Id: Logger.py 38507 2014-03-19 04:37:49Z cheng-xin.cai $
+   provide the common logger specific for SeaPilot
 
 """
 
+__all__ = ( 'Logger' )
 
 import os, sys
 import logging

@@ -1,10 +1,9 @@
 """
-   $Id: Common.py 38587 2014-03-21 01:20:25Z cheng-xin.cai $
 
    provide some common utilities
+
 """
 
-__all__ = []
 
 import os
 from subprocess import Popen, PIPE, STDOUT

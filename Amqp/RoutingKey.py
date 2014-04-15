@@ -1,10 +1,15 @@
 """
-    $Id: RoutingKey.py 38883 2014-03-31 07:10:11Z cheng-xin.cai $
 
     This module provide a simple implementation of RoutingKey class
+
 """
 
-__all__ = []
+
+__all__ = ( 'RoutingKey',
+            'TooManyComopnents', 
+            'TooManyFreeString', 
+            'RepteatedComponent',
+          )
 
 import Common
 
@@ -90,9 +95,11 @@ class TooManyComopnents(Exception):
     """ Exception for too many components """
     pass
 
+
 class TooManyFreeString(Exception):
     """ Exception for too many free strings """
     pass
+
 
 class RepteatedComponent(Exception):
     """ Exception for too repeated component """

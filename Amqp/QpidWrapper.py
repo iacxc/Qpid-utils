@@ -1,11 +1,8 @@
 """
-   $Id: QpidWrapper.py 38908 2014-04-01 03:22:04Z cheng-xin.cai $
 
    provide the wrapper for qpid using qpid.messaging
 
 """
-
-__all__ = []
 
 
 import os
