@@ -24,8 +24,9 @@ def dispatch_msg(msg, proto_path, output=sys.stdout):
     print 'Received event with routing key:', keystr
 
     if msg.content_type != 'application/x-protobuf':
+        print msg.content_type
         print 'Not a google protobuf message'
-        return
+#       return
 
     if output != sys.stdout:
         output.write('/@ routing key\n%s\n@/\n' % keystr)
@@ -145,7 +146,7 @@ def main():
     parser.add_option('-b', '--broker', dest = 'brokers', action='append',
           help='one or more address of the broker to subscribe')
     parser.add_option('--proto-src', dest ='protoSrc', action='store',
-          default = os.path.join(os.environ['HOME'], 'publications'),
+          default = os.getenv('SEAPILOT_HOME') + '/etc/publications',
           help='directory to store subscribe, default [%default]')
     parser.add_option('-o', '--output', dest ='out',
           action='store', default = sys.stdout,
