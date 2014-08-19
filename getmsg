@@ -23,7 +23,8 @@ def dispatch_msg(msg, proto_path, output=sys.stdout):
 
     print 'Received event with routing key:', keystr
 
-    if msg.content_type != 'application/x-protobuf':
+    if not msg.content_type in ('application/x-protobuf',
+                                'application/octstream'):
         print msg.content_type
         print 'Not a google protobuf message'
 #       return
@@ -61,7 +62,7 @@ def dispatch_msg(msg, proto_path, output=sys.stdout):
         amsg.loadtabs(outtpa, pmsg.field_value(field_name))
 
         if outtpa != amsg.dumptabs():
-            raise AssertionError("Error for tpa:%s", routingkey)
+            raise AssertionError("Error for tpa:%s" % routingkey)
 
         bmsg = GpbMessage(proto_path, routingkey.package, 
                                       routingkey.publication)
@@ -69,7 +70,7 @@ def dispatch_msg(msg, proto_path, output=sys.stdout):
         bmsg.loadjson(outjson)
 
         if outjson != bmsg.dumpjson():
-            raise AssertionError("Error for json:%s", routingkey)
+            raise AssertionError("Error for json:%s" % routingkey)
 
         if __debug__ or output != sys.stdout:
             output.write('/@ Tpa string\n%s\n@/\n/=\n%s=/\n\n' % (outtpa, pmsg))
