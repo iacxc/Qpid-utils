@@ -58,22 +58,25 @@ class Getter(ConsumerListener):
 
         routingkey = RoutingKey(keystr)
 
-        pmsg = GpbMessage(routingkey.package, routingkey.publication)
+        try:
+            pmsg = GpbMessage(routingkey.package, routingkey.publication)
+        except ImportError:
+            self.__output.write('Unknown message {}'.format(routingkey))
+            return
+
 
         from google.protobuf.message import DecodeError
         try:
-            pmsg.loads(msg.content)
+            pmsg.loads(message.content)
 
-            self.__output.write(pmsg.topo())
+            self.__output.write('{}'.format(pmsg))
 
-            self.__output.write('@/\n')
+            self.__output.write('@/\n\n')
             self.__output.flush()
 
         except DecodeError:
             print 'Decode error for key: %s' % keystr
             self.__output.write('Decode error for key: %s\n' % keystr)
-        except Exception, exception:
-            print exception
 
 
 # -- main start here --
