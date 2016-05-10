@@ -6,137 +6,74 @@
 import sys, os
 import time
 
-from threading import Thread
+
 import qpid.messaging.exceptions
 
 import Amqp
 from Amqp.RoutingKey import RoutingKey
-from Amqp.QpidWrapper import Consumer
+from Amqp.QpidWrapper import ConsumerListener, Producer
 from protomsg import GpbMessage
 
-def dispatch_msg(msg, proto_path, output=sys.stdout):
-    """ dispatch the message"""
-    if msg.subject:
-        keystr = msg.subject
-    else:
-        keystr = msg.properties.get('x-amqp-0-10.routing-key')
 
-    print 'Received event with routing key:', keystr
-
-    if not msg.content_type in ('application/x-protobuf',
-                                'application/octstream'):
-        print msg.content_type
-        print 'Not a google protobuf message'
-#       return
-
-    if output != sys.stdout:
-        output.write('/@ routing key\n%s\n@/\n' % keystr)
-
-    routingkey = RoutingKey(keystr)
-
-    pmsg = GpbMessage(proto_path, routingkey.package, routingkey.publication)
-
-    from google.protobuf.message import DecodeError
-    try:
-        pmsg.loads(msg.content)
-
-        amsg = GpbMessage(proto_path, routingkey.package, 
-                                      routingkey.publication)
-        outtpa = pmsg.dumptabs()
-
-        field = pmsg.get_field('header')
-        if field:
-            header_class = field.__class__.__name__
-            field_name = {'info_header'   : 'header.info_component_id',
-                          'event_header'  : 'header.header.info_component_id',
-                          'perf_header'   : 'header.header.info_component_id',
-                          'health_header' : 'header.header.info_component_id'
-                         }.get(header_class, 'info_component_id')
-        else:
-            field = pmsg.get_field('checkinfo')
-            if field: #layer_check
-                field_name = 'checkinfo.header.header.info_component_id'
-            else: #normal health check
-                field_name = 'subjectinfo.header.header.info_component_id'
-
-        amsg.loadtabs(outtpa, pmsg.field_value(field_name))
-
-        if outtpa != amsg.dumptabs():
-            raise AssertionError("Error for tpa:%s" % routingkey)
-
-        bmsg = GpbMessage(proto_path, routingkey.package, 
-                                      routingkey.publication)
-        outjson = pmsg.dumpjson()
-        bmsg.loadjson(outjson)
-
-        if outjson != bmsg.dumpjson():
-            raise AssertionError("Error for json:%s" % routingkey)
-
-        if __debug__ or output != sys.stdout:
-            output.write('/@ Tpa string\n%s\n@/\n/=\n%s=/\n\n' % (outtpa, pmsg))
-            output.flush()
-
-    except DecodeError:
-        print 'Decode error for key: %s' % keystr
-        output.write('Decode error for key: %s\n' % keystr)
-    except Exception, exception:
-        print exception
-
-
-class Getter(Thread):
+class Getter(ConsumerListener):
     """ class Getter """
-    def __init__(self, broker, exchange, binding_keys, proto_path,
-                   output=sys.stdout):
-        super(Getter, self).__init__()
+    def __init__(self, broker, exchange, binding_keys,
+                 output=sys.stdout,
+                 brief=False, producer=None):
+        super(Getter, self).__init__(broker, exchange, binding_keys)
 
         self.__broker = broker
-        self.__exchange = exchange
-        self.__binding_keys = binding_keys
-        self.__proto_path = proto_path
         self.__output = output
+        self.__brief = brief
+        self.__producer = producer
+
+        if __debug__:
+            self.__force_output = True
 
         self.__exit = False
-        self.__receiver = None
 
 
-    def run(self):
-        if __debug__:
-            print self.name, 'Start'
+    def received(self, message):
+        if message.subject:
+            keystr = message.subject
+        else:
+            keystr = message.properties.get('x-amqp-0-10.routing-key')
 
-        while not self.__exit:
-            try:
-                if not self.__receiver:
-                    self.__receiver = Consumer(self.__broker,
-                                           self.__exchange,
-                                           self.__binding_keys)
+        print 'Got:', keystr
 
-                msg = self.__receiver.fetch(15)
+        if self.__producer:
+            self.__producer.send(keystr, message.content)
 
-                dispatch_msg(msg, self.__proto_path, self.__output)
+        if self.__brief:
+            return
 
-            except qpid.messaging.exceptions.ConnectError:
-                print '%s Could not connect to  %s, try again...' % (
-                        self.name, self.__broker)
-                time.sleep(5)
+        if not message.content_type in ('application/x-protobuf',
+                                    'application/octstream'):
+            print message.content_type
+            print 'Not a google protobuf message'
+            return
 
-            except qpid.messaging.exceptions.ConnectionError:
-                print 'Lost connection to %s, try again...' % self.__broker
-                self.__receiver = None
-                time.sleep(5)
+        if self.__output != sys.stdout:
+            self.__output.write('/@ routing key\n%s\n@/\n' % keystr)
 
-            except qpid.messaging.exceptions.Empty:
-                if __debug__:
-                    print 'No message, waiting...'
+        routingkey = RoutingKey(keystr)
 
-        if __debug__:
-            print self.name, 'Finished'
+        pmsg = GpbMessage(routingkey.package, routingkey.publication)
 
+        from google.protobuf.message import DecodeError
+        try:
+            pmsg.loads(msg.content)
 
-    def join(self, timeout=None):
-        self.__exit = True
-        if __debug__:
-            print 'Stoping', self.name
-        super(Getter, self).join(timeout)
+            self.__output.write(pmsg.topo())
+
+            self.__output.write('@/\n')
+            self.__output.flush()
+
+        except DecodeError:
+            print 'Decode error for key: %s' % keystr
+            self.__output.write('Decode error for key: %s\n' % keystr)
+        except Exception, exception:
+            print exception
 
 
 # -- main start here --
@@ -146,17 +83,27 @@ def main():
     parser = OptionParser()
     parser.add_option('-b', '--broker', dest = 'brokers', action='append',
           help='one or more address of the broker to subscribe')
-    parser.add_option('--proto-src', dest ='protoSrc', action='store',
-          default = os.getenv('SEAPILOT_HOME') + '/etc/publications',
-          help='directory to store subscribe, default [%default]')
-    parser.add_option('-o', '--output', dest ='out',
-          action='store', default = sys.stdout,
-          help='file to dump message text, default [stdout]')
     parser.add_option('-k', '--binding-key', dest = 'bindingKeys',
           action='append',
           help='routing keys to subscribe')
+    parser.add_option('--proto-src', dest ='protoSrc', action='store',
+          default = '../publications',
+          help='directory to store subscribe, [default: %default]')
+    parser.add_option('-o', '--output', dest ='out',
+          action='store', default = sys.stdout,
+          help='file to dump message text, [default: stdout]')
+    parser.add_option('--forward',
+          help='where to forward the publication')
+    parser.add_option('--brief',
+          action='store_true', default=False,
+          help='only display routing key, [default: %default]')
 
     (opts, _args) = parser.parse_args()
+
+    if opts.brokers is None:
+        print 'Please specify brokers'
+        parser.print_help()
+        sys.exit(1)
 
     if __debug__:
         print opts.brokers
@@ -169,16 +116,24 @@ def main():
     else:
         output = open(opts.out, 'w')
 
-    threads = [Getter(broker, exchange, opts.bindingKeys, opts.protoSrc, output)
+    Amqp.set_proto_src(opts.protoSrc)
+
+    producer = Producer(opts.forward) if opts.forward else None
+
+    getters = [Getter(broker, exchange, opts.bindingKeys,
+                      output, opts.brief, producer)
                   for broker in opts.brokers]
 
 
     try:
-        for thread in threads:
-            thread.start()
+        for getter in getters:
+            getter.start()
 
-        while True:
-            time.sleep(1)
+        getter_alive = True
+        while getter_alive:
+            getter_alive = any(getter.is_alive() for getter in getters)
+
+            time.sleep(5)
     except KeyboardInterrupt:
         print '\nControl-C pressed, exiting...'
 
@@ -188,10 +143,10 @@ def main():
     except qpid.messaging.exceptions.MalformedAddress:
         print 'Malformed routingkey'
 
-    #finally:
-    for thread in threads:
-        print 'Terminate', thread.name
-        thread.join()
+    finally:
+        for getter in getters:
+            print 'Terminate', getter.name
+            getter.stop()
 
     if output != sys.stdout:
         output.close()
