@@ -1,0 +1,45 @@
+#!/usr/bin/python -O
+
+
+import socket
+import os
+import time
+from bottle import Bottle, run, template, static_file
+from bottle.ext.websocket import GeventWebSocketServer, websocket
+
+
+app = Bottle()
+host = socket.getfqdn()
+port = 9000
+
+
+@app.route("/")
+def start():
+    return template("qpidmsg", {
+        'host' : host,
+        'port' : port})
+
+
+@app.get("/websocket", apply=[websocket])
+def echo(ws):
+    print ws
+    msg = ws.receive()
+    count = 0
+    if msg is not None:
+        try:
+            while True:
+                ws.send("{0}:{1}:{2}".format(
+                    time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
+                    count,msg))
+                time.sleep(3)
+                count += 1
+        except KeyboardInterrupt:
+            pass
+
+
+@app.route("/lib/<filename:path>")
+def callback(filename):
+    return static_file(filename, root=os.path.join(os.getcwd(), 'static_file'))
+
+
+run(app, host=host, port=port, server=GeventWebSocketServer)
