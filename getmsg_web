@@ -1,40 +1,82 @@
 #!/usr/bin/python -O
 
 
-import socket
 import os
 import time
-from bottle import Bottle, run, template, static_file
+import json
+from bottle import Bottle, request, response, template, static_file
 from bottle.ext.websocket import GeventWebSocketServer, websocket
+
+def now():
+    return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+
+
+#import threading
+#class Getter(threading.Thread):
+#    def __init__(self, host, port, keys, producer):
+#        super(Getter, self).__init__()
+#        self.__host = host
+#        self.__port = port
+#        self.__keys = keys
+#        self.__producer = producer
+#
+#        self.__exit = False
+#
+#
+#    def run(self):
+#        print 'Starting...'
+#        while not self.__exit:
+#            msg = now() + ': {0}:{1} [{2}]'.format(self.__host, 
+#                                               self.__port, self.__keys)
+#            self.__producer.send(msg)
+#            time.sleep(2)
+#    
+#        print 'Finished...'
+#
+#
+#    def stop(self):
+#        self.__exit = True
+#        self.join(5)
+from getter import Getter
+
+class Producer(object):
+    """ a wrapper for websocket """
+    def __init__(self, ws):
+        self.__ws = ws
+
+    def send(self, rkey, content):
+        self.__ws.send(rkey)
 
 
 app = Bottle()
-host = socket.getfqdn()
-port = 9000
-
 
 @app.route("/")
 def start():
-    return template("qpidmsg", {
-        'host' : host,
-        'port' : port})
+    return template("qpidmsg", host=request.headers['Host'])
 
 
 @app.get("/websocket", apply=[websocket])
 def echo(ws):
     print ws
-    msg = ws.receive()
-    count = 0
-    if msg is not None:
-        try:
-            while True:
-                ws.send("{0}:{1}:{2}".format(
-                    time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
-                    count,msg))
-                time.sleep(3)
-                count += 1
-        except KeyboardInterrupt:
-            pass
+    exchange = 'amq.topic'
+    getter = None
+    while True:
+        msg = ws.receive()
+        if msg is not None:
+            msg = json.loads(msg)
+            op = msg['op']
+            if op == 'connect':
+                if getter is None:
+                    getter = Getter('{0}:{1}'.format(msg['host'], msg['port']),
+                                    exchange, [msg['key']], 
+                                    brief=True, producer=Producer(ws))
+                    getter.start()
+            elif op == 'disconnect':
+                if getter:
+                    getter.stop()
+                getter = None
+        else:
+            break
 
 
 @app.route("/lib/<filename:path>")
@@ -42,4 +84,15 @@ def callback(filename):
     return static_file(filename, root=os.path.join(os.getcwd(), 'static_file'))
 
 
-run(app, host=host, port=port, server=GeventWebSocketServer)
+if __name__ == '__main__':
+
+    from optparse import OptionParser
+    parser = OptionParser()
+    parser.add_option('-b', '--bindingip', dest = 'ip', 
+          action='store', default='127.0.0.1',
+          help='ip address for binding')
+
+    (opts, _args) = parser.parse_args()
+
+    port = 9000
+    app.run(host=opts.ip, port=port, server=GeventWebSocketServer)

@@ -7,38 +7,63 @@
 <h1>Qpid message</h1>
 <form id="form">
     Host:
-    <input id="host" name="host" />
+    <input id="host" name="host" size="25" />
     Port:
-    <input id="port" name="port" />
+    <input id="port" name="port" size="10" />
     RoutingKey:
-    <input id="key"  name="key" value="#"/>
-    <input id="connect" type="button" value="Connect" disabled/>
+    <input id="key"  name="key" value="#" size="40" />
+    <input id="connect" type="submit" value="Connect" disabled/>
 </form>
-<ul id="box" style="height:300px;overflow:auto">
+<ul id="box" style="height:500px;overflow:auto">
 </ul>
 <script src="/lib/jquery-2.2.3.min.js" type="text/javascript"></script>
 <script>
-    var ws = new WebSocket('ws://{{host}}:{{port}}/websocket');
+    if (!window.WebSocket) {
+        if (window.MozWebSocket) {
+            window.WebSocket = window.MozWebSocket;
+        } else {
+            $('#box').append(
+                "<li>Your browser doesn't support WebSockets.</li>");
+        }
+    }
+
+    ws = new WebSocket('ws://{{host}}/websocket');
     ws.onopen = function(evt) {
         $('#connect').removeAttr('disabled');
     }
     ws.onmessage = function(evt) {
         $('#box').append("<li>" + evt.data + "</li>");
+//        connected = true;
     }
 
-    $('#form').on("submit", function(e) {
+    connected = false;
+    $('#form').submit(function(e) {
         e.preventDefault();
-        var host = $('#host').val().trim();
-        var port = $('#port').val().trim();
-        var key = $('#key').val()}).trim();
+        if (! connected) {
+            var host = $('#host').val().trim();
+            var port = $('#port').val().trim();
+            var key = $('#key').val().trim();
 
-        if (host.length === 0 || port.length === 0 || key.length === 0) {
-            alert("input fields cannot be empty");
-            return;
+            if (host.length === 0 || port.length === 0 || key.length === 0) {
+                alert("input fields cannot be empty");
+                return;
+            }
+
+            $('#box').empty();
+            var msg = JSON.stringify({'op': 'connect',
+                                      'host': host, 
+                                      'port': port, 
+                                      'key': key});
+            ws.send(msg);
+            $('#connect').val("Disconnect");
+            connected = true;
         }
-
-        var msg = JSON.stringify({host: host, port: port, key: key});
-        ws.send(msg);
+        else {
+            var msg = JSON.stringify({'op': 'disconnect'});
+            ws.send(msg);
+            $('#connect').val("Connect");
+            connected = false;
+        }
         return;
     });
 
