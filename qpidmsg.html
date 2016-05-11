@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Title</title>
+    <title>{{title}}</title>
 </head>
 <body>
 <h1>Qpid message</h1>
@@ -14,29 +14,45 @@
     <input id="key"  name="key" value="#" size="40" />
     <input id="connect" type="submit" value="Connect" disabled/>
 </form>
-<ul id="box" style="height:500px;overflow:auto">
-</ul>
+<ol id="list" style="height:500px;overflow:auto"> </ol>
 <script src="/lib/jquery-2.2.3.min.js" type="text/javascript"></script>
 <script>
+
+    var connected;
+
     if (!window.WebSocket) {
         if (window.MozWebSocket) {
             window.WebSocket = window.MozWebSocket;
         } else {
-            $('#box').append(
+            $('#list').append(
                 "<li>Your browser doesn't support WebSockets.</li>");
         }
     }
 
     ws = new WebSocket('ws://{{host}}/websocket');
+
     ws.onopen = function(evt) {
         $('#connect').removeAttr('disabled');
     }
+
     ws.onmessage = function(evt) {
-        $('#box').append("<li>" + evt.data + "</li>");
-//        connected = true;
+        if (evt.data == "reset") {
+            reset();
+        }
+        else {
+            $('#list').append("<li>" + evt.data + "</li>");
+        }
     }
 
-    connected = false;
+    function reset() {
+        $('#connect').val("Connect");
+        connected = false;
+    }
+    function set_connected() {
+        $('#connect').val("Disconnect");
+        connected = true;
+    }
+
     $('#form').submit(function(e) {
         e.preventDefault();
         if (! connected) {
@@ -49,20 +65,20 @@
                 return;
             }
 
-            $('#box').empty();
-            var msg = JSON.stringify({'op': 'connect',
+            var msg = JSON.stringify({'op': 'start',
                                       'host': host, 
                                       'port': port, 
                                       'key': key});
+            $('#list').empty();
             ws.send(msg);
-            $('#connect').val("Disconnect");
-            connected = true;
+
+            set_connected();
         }
         else {
-            var msg = JSON.stringify({'op': 'disconnect'});
+            var msg = JSON.stringify({'op': 'stop'});
             ws.send(msg);
-            $('#connect').val("Connect");
-            connected = false;
+
+            reset();
         }
         return;
     });

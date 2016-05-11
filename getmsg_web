@@ -6,57 +6,23 @@ import time
 import json
 from bottle import Bottle, request, response, template, static_file
 from bottle.ext.websocket import GeventWebSocketServer, websocket
+from getter import Getter
+
 
 def now():
     return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
 
 
-#import threading
-#class Getter(threading.Thread):
-#    def __init__(self, host, port, keys, producer):
-#        super(Getter, self).__init__()
-#        self.__host = host
-#        self.__port = port
-#        self.__keys = keys
-#        self.__producer = producer
-#
-#        self.__exit = False
-#
-#
-#    def run(self):
-#        print 'Starting...'
-#        while not self.__exit:
-#            msg = now() + ': {0}:{1} [{2}]'.format(self.__host, 
-#                                               self.__port, self.__keys)
-#            self.__producer.send(msg)
-#            time.sleep(2)
-#    
-#        print 'Finished...'
-#
-#
-#    def stop(self):
-#        self.__exit = True
-#        self.join(5)
-from getter import Getter
+def get_qpidmsg(ws):
 
-class Producer(object):
-    """ a wrapper for websocket """
-    def __init__(self, ws):
-        self.__ws = ws
+    class Producer(object):
+        """ a wrapper for websocket """
+        def __init__(self, ws):
+            self.__ws = ws
 
-    def send(self, rkey, content):
-        self.__ws.send(rkey)
+        def send(self, rkey, content):
+            self.__ws.send('{0} - {1}'.format(now(), rkey))
 
-
-app = Bottle()
-
-@app.route("/")
-def start():
-    return template("qpidmsg", host=request.headers['Host'])
-
-
-@app.get("/websocket", apply=[websocket])
-def echo(ws):
     print ws
     exchange = 'amq.topic'
     getter = None
@@ -64,19 +30,38 @@ def echo(ws):
         msg = ws.receive()
         if msg is not None:
             msg = json.loads(msg)
-            op = msg['op']
-            if op == 'connect':
+            op = msg.get('op')
+            if op == 'start':
                 if getter is None:
-                    getter = Getter('{0}:{1}'.format(msg['host'], msg['port']),
-                                    exchange, [msg['key']], 
-                                    brief=True, producer=Producer(ws))
-                    getter.start()
-            elif op == 'disconnect':
+                    try:
+                        getter = Getter('{0}:{1}'.format(msg['host'], msg['port']),
+                                        exchange, [msg['key']],
+                                        brief=True, producer=Producer(ws))
+                        getter.start()
+                    except Exception as exp:
+                        ws.send(exp.message)
+                        ws.send('reset')
+
+            elif op == 'stop':
                 if getter:
                     getter.stop()
                 getter = None
         else:
             break
+
+
+
+app = Bottle()
+
+@app.route("/")
+def start():
+    return template("qpidmsg", title="Qpid Messages",
+                               host=request.headers['Host'])
+
+
+@app.get("/websocket", apply=[websocket])
+def echo(ws):
+    get_qpidmsg(ws)
 
 
 @app.route("/lib/<filename:path>")
