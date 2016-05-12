@@ -4,24 +4,20 @@
 import os
 import time
 import json
-from bottle import Bottle, request, response, template, static_file
+from bottle import Bottle, request, template, static_file
 from bottle.ext.websocket import GeventWebSocketServer, websocket
 from getter import Getter
 
 
-def now():
-    return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-
-
 def get_qpidmsg(ws):
-
+    """ get qpid message and send it back to websocket """
     class Producer(object):
         """ a wrapper for websocket """
         def __init__(self, ws):
             self.__ws = ws
 
         def send(self, rkey, content):
-            self.__ws.send('{0} - {1}'.format(now(), rkey))
+            self.__ws.send(json.dumps({'key': rkey}))
 
     print ws
     exchange = 'amq.topic'
@@ -48,7 +44,6 @@ def get_qpidmsg(ws):
                 getter = None
         else:
             break
-
 
 
 app = Bottle()

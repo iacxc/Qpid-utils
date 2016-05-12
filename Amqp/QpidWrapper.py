@@ -115,6 +115,9 @@ class ConsumerListener(Thread):
             except qpid.messaging.exceptions.Empty:
                 if __debug__:
                     print 'No message, continue'
+            except Exception as exp:
+                print exp
+                self.__exit = True
 
         if __debug__:
             print 'Finished'

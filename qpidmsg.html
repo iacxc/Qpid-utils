@@ -4,17 +4,14 @@
     <title>{{title}}</title>
 </head>
 <body>
-<h1>Qpid message</h1>
+<h1>{{title}}</h1>
 <form id="form">
-    Host:
-    <input id="host" name="host" size="25" />
-    Port:
-    <input id="port" name="port" size="10" />
-    RoutingKey:
-    <input id="key"  name="key" value="#" size="40" />
+    Host: <input id="host" name="host" size="25" />
+    Port: <input id="port" name="port" size="10" />
+    RoutingKey: <input id="key"  name="key" value="#" size="40" />
     <input id="connect" type="submit" value="Connect" disabled/>
 </form>
-<div id="list" style="width:800px;height:600px;background-color:#eef;overflow-y:scroll">
+<div id="list" style="width:810px;height:600px;background-color:#eef;overflow-y:scroll">
 </div>
 <script src="/lib/jquery-2.2.3.min.js" type="text/javascript"></script>
 <script>
@@ -26,7 +23,7 @@
             window.WebSocket = window.MozWebSocket;
         } else {
             $('#list').append(
-                "<li>Your browser doesn't support WebSockets.</li>");
+                "<div>Your browser doesn't support WebSockets.</div>");
         }
     }
 
@@ -41,10 +38,15 @@
             reset();
         }
         else {
+            var message = JSON.parse(evt.data);
             var list = $('#list');
-            list.append("<div>" + evt.data + "</div>");
+            list.append("<div>" + message.key + "</div>");
             list.scrollTop(list[0].scrollHeight);
         }
+    }
+
+    ws.onerror = function(evt) {
+        $('#list').append("<div>" + evt.data + "</div>");
     }
 
     function reset() {
