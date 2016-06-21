@@ -99,11 +99,14 @@ class Producer(QpidWrapper):
 
 class ConsumerListener(Thread):
     def __init__(self, broker="localhost:5672", exchange="amq.topic",
-                       binding_keys=None, username=None, password=None):
+                       binding_keys=None, username=None, password=None,
+                       handler=None):
         super(ConsumerListener, self).__init__()
         self.__consumer = Consumer(broker, exchange, binding_keys,
                                            username, password)
+        self.__handler = handler
         self.__exit = False
+
 
     def run(self):
         import qpid.messaging.exceptions
@@ -124,7 +127,10 @@ class ConsumerListener(Thread):
 
 
     def received(self, message):
-        raise NotImplementedError, 'not implemented'
+        if self.__handler is None:
+            print 'No hander for:', message
+        else:
+            self.__handler.process(message)
 
 
     def stop(self):

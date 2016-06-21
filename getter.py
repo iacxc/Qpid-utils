@@ -11,14 +11,10 @@ from Amqp.QpidWrapper import ConsumerListener, Producer
 from protomsg import GpbMessage
 
 
-class Getter(ConsumerListener):
+class MessageGetter(object):
     """ class Getter """
-    def __init__(self, broker, exchange, binding_keys,
-                 output=sys.stdout,
-                 brief=False, producer=None):
-        super(Getter, self).__init__(broker, exchange, binding_keys)
+    def __init__(self, output=sys.stdout, brief=False, producer=None):
 
-        self.__broker = broker
         self.__output = output
         self.__brief = brief
         self.__producer = producer
@@ -29,7 +25,7 @@ class Getter(ConsumerListener):
         self.__exit = False
 
 
-    def received(self, message):
+    def process(self, message):
         if message.subject:
             keystr = message.subject
         else:
@@ -75,5 +71,3 @@ class Getter(ConsumerListener):
             self.__output.write('Decode error for key: %s\n' % keystr)
 
 
-if __name__ == '__main__':
-    print 'Getter'

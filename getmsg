@@ -10,9 +10,9 @@ import time
 import qpid.messaging.exceptions
 
 import Amqp
-from Amqp.QpidWrapper import Producer
+from Amqp.QpidWrapper import Producer, ConsumerListener
 
-from getter import Getter
+from getter import MessageGetter
 
 # -- main start here --
 def main():
@@ -58,18 +58,19 @@ def main():
 
     producer = Producer(opts.forward) if opts.forward else None
 
-    getters = [Getter(broker, exchange, opts.bindingKeys,
-                      output, opts.brief, producer)
+    handler = MessageGetter(output, opts.brief, producer)
+    listeners = [ConsumerListener(broker, exchange, opts.bindingKeys,
+                                  handler=handler)
                   for broker in opts.brokers]
 
 
     try:
-        for getter in getters:
-            getter.start()
+        for listener in listeners:
+            listener.start()
 
         getter_alive = True
         while getter_alive:
-            getter_alive = any(getter.is_alive() for getter in getters)
+            getter_alive = any(listener.is_alive() for listener in listeners)
 
             time.sleep(5)
     except KeyboardInterrupt:
@@ -82,9 +83,9 @@ def main():
         print 'Malformed routingkey'
 
     finally:
-        for getter in getters:
-            print 'Terminate', getter.name
-            getter.stop()
+        for listener in listeners:
+            print 'Terminate', listener.name
+            listener.stop()
 
     if output != sys.stdout:
         output.close()
