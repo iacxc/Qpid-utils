@@ -73,7 +73,7 @@ def main():
     if opts.debug:
         print '* Connect to AMQP broker', opts.ip, 'on port', opts.port
 
-    producer = Producer('{0}:{1}'.format(opts.ip, opts.port))
+    producer = Producer('%s:%d' % (opts.ip, opts.port))
     routingKey = RoutingKey('.'.join([opts.type, 
                                       opts.scope,
                                       opts.security,

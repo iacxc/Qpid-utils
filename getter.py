@@ -53,7 +53,7 @@ class MessageGetter(object):
         try:
             pmsg = GpbMessage(routingkey.package, routingkey.publication)
         except ImportError:
-            self.__output.write('Unknown message {}'.format(routingkey))
+            self.__output.write('Unknown message %s\n' % routingkey)
             return
 
 
@@ -61,7 +61,7 @@ class MessageGetter(object):
         try:
             pmsg.loads(message.content)
 
-            self.__output.write('{}'.format(pmsg))
+            self.__output.write('%s' % pmsg)
 
             self.__output.write('@/\n\n')
             self.__output.flush()
